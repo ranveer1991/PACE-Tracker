@@ -143,10 +143,13 @@
 
         try {
             await fetch(scriptURL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+    method: 'POST',
+    mode: 'no-cors', // Keeps the request "quiet"
+    headers: { 
+        'Content-Type': 'text/plain;charset=utf-8' // This is the secret fix
+    },
+    body: JSON.stringify(payload)
+});
             });
             
             alert("Success! Entry recorded.");
