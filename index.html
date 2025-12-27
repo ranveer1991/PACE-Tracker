@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PACE Tracker</title>
+    <style>
+        :root {
+            --ios-blue: #007aff;
+            --ios-green: #34c759;
+            --ios-bg: #f2f2f7;
+        }
+        body { 
+            font-family: -apple-system, system-ui, sans-serif; 
+            background: var(--ios-bg); 
+            padding: 20px; 
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container { width: 100%; max-width: 400px; }
+        h1 { font-size: 28px; font-weight: 700; margin-bottom: 5px; text-align: center; }
+        .subtitle { color: #8e8e93; text-align: center; margin-bottom: 25px; font-size: 15px; }
+        
+        .section { 
+            background: white; 
+            border-radius: 12px; 
+            padding: 16px; 
+            margin-bottom: 15px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .section-title { font-weight: 600; font-size: 17px; color: var(--ios-blue); margin-bottom: 4px; }
+        .desc { font-size: 13px; color: #636366; margin-bottom: 12px; line-height: 1.4; }
+        
+        /* Likert Styling */
+        .likert-group { display: flex; justify-content: space-between; gap: 8px; }
+        .likert-group label { flex: 1; position: relative; }
+        .likert-group input { position: absolute; opacity: 0; width: 0; height: 0; }
+        .likert-group span { 
+            display: block; 
+            text-align: center; 
+            padding: 12px 0; 
+            background: #f2f2f7; 
+            border-radius: 8px; 
+            font-weight: 600;
+            transition: 0.2s;
+        }
+        .likert-group input:checked + span { 
+            background: var(--ios-blue); 
+            color: white; 
+        }
+
+        button { 
+            width: 100%; 
+            padding: 16px; 
+            background: var(--ios-green); 
+            color: white; 
+            border: none; 
+            border-radius: 12px; 
+            font-size: 17px; 
+            font-weight: 600; 
+            margin-top: 10px;
+            -webkit-tap-highlight-color: transparent;
+        }
+        button:active { opacity: 0.7; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>P.A.C.E.</h1>
+    <p class="subtitle">Segmented Daily Tracker</p>
+
+    <div class="section">
+        <div class="section-title">Physical</div>
+        <div class="desc">Exercise, healthy eating/drinking, rest and sleep.</div>
+        <div class="likert-group">
+            <label><input type="radio" name="physical" value="1"><span>1</span></label>
+            <label><input type="radio" name="physical" value="2"><span>2</span></label>
+            <label><input type="radio" name="physical" value="3"><span>3</span></label>
+            <label><input type="radio" name="physical" value="4"><span>4</span></label>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Achieve</div>
+        <div class="desc">Work, study, domestic tasks, and caring.</div>
+        <div class="likert-group">
+            <label><input type="radio" name="achieve" value="1"><span>1</span></label>
+            <label><input type="radio" name="achieve" value="2"><span>2</span></label>
+            <label><input type="radio" name="achieve" value="3"><span>3</span></label>
+            <label><input type="radio" name="achieve" value="4"><span>4</span></label>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Connect</div>
+        <div class="desc">Friends, family, social groups, and community.</div>
+        <div class="likert-group">
+            <label><input type="radio" name="connect" value="1"><span>1</span></label>
+            <label><input type="radio" name="connect" value="2"><span>2</span></label>
+            <label><input type="radio" name="connect" value="3"><span>3</span></label>
+            <label><input type="radio" name="connect" value="4"><span>4</span></label>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Enjoy</div>
+        <div class="desc">Play, fun, interest, relaxation, and pleasure.</div>
+        <div class="likert-group">
+            <label><input type="radio" name="enjoy" value="1"><span>1</span></label>
+            <label><input type="radio" name="enjoy" value="2"><span>2</span></label>
+            <label><input type="radio" name="enjoy" value="3"><span>3</span></label>
+            <label><input type="radio" name="enjoy" value="4"><span>4</span></label>
+        </div>
+    </div>
+
+    <button id="submitBtn" onclick="sendData()">Log Today</button>
+</div>
+
+<script>
+    async function sendData() {
+        const btn = document.getElementById('submitBtn');
+        const getVal = (name) => document.querySelector(`input[name="${name}"]:checked`)?.value;
+        
+        const payload = {
+            physical: getVal('physical'),
+            achieve: getVal('achieve'),
+            connect: getVal('connect'),
+            enjoy: getVal('enjoy')
+        };
+
+        if (!payload.physical || !payload.achieve || !payload.connect || !payload.enjoy) {
+            alert("Please score all 4 areas.");
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerText = "Saving...";
+
+        const scriptURL = "https://script.google.com/macros/s/AKfycbxdmuaqHUs6Oxld2GHLAzsBZpVlsp2GYJkeSa6Phuzh8FUW2K9GbHbd2IR4kmcncEJV3Q/exec";
+
+        try {
+            await fetch(scriptURL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            alert("Success! Entry recorded.");
+            // Reset selection
+            document.querySelectorAll('input:checked').forEach(el => el.checked = false);
+        } catch (error) {
+            alert("Error: " + error.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Log Today";
+        }
+    }
+</script>
+
+</body>
+</html>
