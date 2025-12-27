@@ -2,42 +2,56 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PACE Stats</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PACE Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --ios-blue: #007aff;
             --ios-bg: #f2f2f7;
+            --card-shadow: 0 4px 12px rgba(0,0,0,0.08);
         }
         body { 
-            font-family: -apple-system, sans-serif; 
+            font-family: -apple-system, system-ui, sans-serif; 
             background: var(--ios-bg); 
             padding: 20px; 
+            margin: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
-        .container { width: 100%; max-width: 400px; }
-        h1 { text-align: center; margin-bottom: 20px; }
+        .container { width: 100%; max-width: 500px; }
+        h1 { font-size: 24px; font-weight: 700; text-align: center; margin: 10px 0 20px 0; }
         
-        .stat-card {
+        .card {
             background: white;
-            border-radius: 12px;
+            border-radius: 16px;
             padding: 20px;
-            margin-bottom: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            box-shadow: var(--card-shadow);
         }
-        .label { font-weight: 600; font-size: 18px; color: #333; }
-        .value { font-size: 24px; font-weight: 700; color: var(--ios-blue); }
-        .count { font-size: 12px; color: #8e8e93; text-align: center; margin-top: 20px; }
         
+        .chart-container { position: relative; height: 250px; width: 100%; }
+
+        .avg-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .avg-item {
+            background: #fff;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid #e5e5ea;
+        }
+        .avg-label { font-size: 12px; color: #8e8e93; text-transform: uppercase; letter-spacing: 0.5px; }
+        .avg-val { font-size: 22px; font-weight: 700; color: var(--ios-blue); display: block; }
+
         .back-btn {
             display: block;
             text-align: center;
-            margin-top: 30px;
+            margin: 20px 0 40px 0;
             color: var(--ios-blue);
             text-decoration: none;
             font-weight: 600;
@@ -47,76 +61,89 @@
 <body>
 
 <div class="container">
-    <h1>Averages</h1>
+    <h1>Your Progress</h1>
     
-    <div id="stats-container">
-        <p style="text-align: center;">Calculating scores...</p>
+    <div class="card">
+        <h3 style="margin-top:0; font-size: 16px;">7-Day Trend</h3>
+        <div class="chart-container">
+            <canvas id="paceChart"></canvas>
+        </div>
     </div>
 
-    <div id="entry-count" class="count"></div>
+    <div class="card">
+        <h3 style="margin-top:0; font-size: 16px; margin-bottom: 15px;">Lifetime Averages</h3>
+        <div id="averages-container" class="avg-grid">
+            <p>Loading stats...</p>
+        </div>
+    </div>
 
     <a href="index.html" class="back-btn">← Back to Tracker</a>
 </div>
 
 <script>
-    async function fetchStats() {
+    async function loadDashboard() {
         const SUB_URL = "https://lsctlfavvxasbkcvbjmq.supabase.co";
         const SUB_KEY = "sb_publishable_33maxbMOQrHvDSYwFouYNQ_EWrP1s8K";
 
         try {
-            const response = await fetch(`${SUB_URL}/rest/v1/habits`, {
+            const response = await fetch(`${SUB_URL}/rest/v1/habits?select=*&order=created_at.desc&limit=7`, {
                 method: "GET",
-                headers: {
-                    "apikey": SUB_KEY,
-                    "Authorization": `Bearer ${SUB_KEY}`,
-                    "Content-Type": "application/json"
+                headers: { "apikey": SUB_KEY, "Authorization": `Bearer ${SUB_KEY}` }
+            });
+
+            let data = await response.json();
+            if (data.length === 0) return;
+
+            // Reverse for chronological chart display
+            const chartData = [...data].reverse();
+            
+            // 1. Render Chart
+            const ctx = document.getElementById('paceChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.map(d => new Date(d.created_at).toLocaleDateString([], {weekday: 'short'})),
+                    datasets: [
+                        { label: 'P', data: chartData.map(d => d.physical), borderColor: '#ff3b30', tension: 0.4, fill: false },
+                        { label: 'A', data: chartData.map(d => d.achieve), borderColor: '#ff9500', tension: 0.4, fill: false },
+                        { label: 'C', data: chartData.map(d => d.connect), borderColor: '#007aff', tension: 0.4, fill: false },
+                        { label: 'E', data: chartData.map(d => d.enjoy), borderColor: '#34c759', tension: 0.4, fill: false }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { min: 1, max: 4, ticks: { stepSize: 1 } } },
+                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } }
                 }
             });
 
-            const data = await response.json();
-
-            if (data.length === 0) {
-                document.getElementById('stats-container').innerHTML = "<p>No data logged yet.</p>";
-                return;
-            }
-
-            // Calculation Logic
-            const totals = data.reduce((acc, curr) => {
-                acc.physical += curr.physical || 0;
-                acc.achieve += curr.achieve || 0;
-                acc.connect += curr.connect || 0;
-                acc.enjoy += curr.enjoy || 0;
+            // 2. Calculate Lifetime Averages (Fetch all for this)
+            const fullResponse = await fetch(`${SUB_URL}/rest/v1/habits`, {
+                headers: { "apikey": SUB_KEY, "Authorization": `Bearer ${SUB_KEY}` }
+            });
+            const allData = await fullResponse.json();
+            
+            const totals = allData.reduce((acc, curr) => {
+                acc.p += curr.physical; acc.a += curr.achieve; acc.c += curr.connect; acc.e += curr.enjoy;
                 return acc;
-            }, { physical: 0, achieve: 0, connect: 0, enjoy: 0 });
+            }, {p:0, a:0, c:0, e:0});
 
-            const count = data.length;
-            const averages = {
-                Physical: (totals.physical / count).toFixed(1),
-                Achieve: (totals.achieve / count).toFixed(1),
-                Connect: (totals.connect / count).toFixed(1),
-                Enjoy: (totals.enjoy / count).toFixed(1)
-            };
-
-            // Generate HTML
-            let html = "";
-            for (const [key, val] of Object.entries(averages)) {
-                html += `
-                    <div class="stat-card">
-                        <span class="label">${key}</span>
-                        <span class="value">${val}</span>
-                    </div>
-                `;
-            }
-
-            document.getElementById('stats-container').innerHTML = html;
-            document.getElementById('entry-count').innerText = `Based on ${count} total entries`;
+            const count = allData.length;
+            const html = `
+                <div class="avg-item"><span class="avg-label">Physical</span><span class="avg-val">${(totals.p/count).toFixed(1)}</span></div>
+                <div class="avg-item"><span class="avg-label">Achieve</span><span class="avg-val">${(totals.a/count).toFixed(1)}</span></div>
+                <div class="avg-item"><span class="avg-label">Connect</span><span class="avg-val">${(totals.c/count).toFixed(1)}</span></div>
+                <div class="avg-item"><span class="avg-label">Enjoy</span><span class="avg-val">${(totals.e/count).toFixed(1)}</span></div>
+            `;
+            document.getElementById('averages-container').innerHTML = html;
 
         } catch (error) {
-            document.getElementById('stats-container').innerHTML = `<p style="color:red">Error: ${error.message}</p>`;
+            console.error(error);
         }
     }
 
-    fetchStats();
+    loadDashboard();
 </script>
 
 </body>
