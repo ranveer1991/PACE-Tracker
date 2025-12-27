@@ -33,7 +33,6 @@
         .section-title { font-weight: 600; font-size: 17px; color: var(--ios-blue); margin-bottom: 4px; }
         .desc { font-size: 13px; color: #636366; margin-bottom: 12px; line-height: 1.4; }
         
-        /* Likert Styling */
         .likert-group { display: flex; justify-content: space-between; gap: 8px; }
         .likert-group label { flex: 1; position: relative; }
         .likert-group input { position: absolute; opacity: 0; width: 0; height: 0; }
@@ -64,13 +63,14 @@
             -webkit-tap-highlight-color: transparent;
         }
         button:active { opacity: 0.7; }
+        button:disabled { background: #ccc; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>P.A.C.E.</h1>
-    <p class="subtitle">Segmented Daily Tracker</p>
+    <p class="subtitle">Daily Habit Tracker</p>
 
     <div class="section">
         <div class="section-title">Physical</div>
@@ -124,37 +124,48 @@
         const btn = document.getElementById('submitBtn');
         const getVal = (name) => document.querySelector(`input[name="${name}"]:checked`)?.value;
         
-        const payload = {
-            physical: getVal('physical'),
-            achieve: getVal('achieve'),
-            connect: getVal('connect'),
-            enjoy: getVal('enjoy')
-        };
+        const physical = getVal('physical');
+        const achieve = getVal('achieve');
+        const connect = getVal('connect');
+        const enjoy = getVal('enjoy');
 
-        if (!payload.physical || !payload.achieve || !payload.connect || !payload.enjoy) {
+        if (!physical || !achieve || !connect || !enjoy) {
             alert("Please score all 4 areas.");
             return;
         }
 
-        btn.disabled = true;
-        btn.innerText = "Saving...";
+        const payload = {
+            physical: parseInt(physical),
+            achieve: parseInt(achieve),
+            connect: parseInt(connect),
+            enjoy: parseInt(enjoy)
+        };
 
-        const scriptURL = "https://script.google.com/macros/s/AKfycbxdmuaqHUs6Oxld2GHLAzsBZpVlsp2GYJkeSa6Phuzh8FUW2K9GbHbd2IR4kmcncEJV3Q/exec";
+        btn.disabled = true;
+        btn.innerText = "Saving to Supabase...";
+
+        const SUB_URL = "https://lsctlfavvxasbkcvbjmq.supabase.co";
+        const SUB_KEY = "sb_publishable_33maxbMOQrHvDSYwFouYNQ_EWrP1s8K";
 
         try {
-            await fetch(scriptURL, {
-    method: 'POST',
-    mode: 'no-cors', // Keeps the request "quiet"
-    headers: { 
-        'Content-Type': 'text/plain;charset=utf-8' // This is the secret fix
-    },
-    body: JSON.stringify(payload)
-});
+            const response = await fetch(`${SUB_URL}/rest/v1/habits`, {
+                method: "POST",
+                headers: {
+                    "apikey": SUB_KEY,
+                    "Authorization": `Bearer ${SUB_KEY}`,
+                    "Content-Type": "application/json",
+                    "Prefer": "return=minimal"
+                },
+                body: JSON.stringify(payload)
             });
-            
-            alert("Success! Entry recorded.");
-            // Reset selection
-            document.querySelectorAll('input:checked').forEach(el => el.checked = false);
+
+            if (response.ok) {
+                alert("Success! Entry recorded.");
+                document.querySelectorAll('input:checked').forEach(el => el.checked = false);
+            } else {
+                const errorData = await response.json();
+                throw new Error(errorData.message || "Failed to save");
+            }
         } catch (error) {
             alert("Error: " + error.message);
         } finally {
