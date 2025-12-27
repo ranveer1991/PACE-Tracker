@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PACE Stats</title>
+    <style>
+        :root {
+            --ios-blue: #007aff;
+            --ios-bg: #f2f2f7;
+        }
+        body { 
+            font-family: -apple-system, sans-serif; 
+            background: var(--ios-bg); 
+            padding: 20px; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container { width: 100%; max-width: 400px; }
+        h1 { text-align: center; margin-bottom: 20px; }
+        
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .label { font-weight: 600; font-size: 18px; color: #333; }
+        .value { font-size: 24px; font-weight: 700; color: var(--ios-blue); }
+        .count { font-size: 12px; color: #8e8e93; text-align: center; margin-top: 20px; }
+        
+        .back-btn {
+            display: block;
+            text-align: center;
+            margin-top: 30px;
+            color: var(--ios-blue);
+            text-decoration: none;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Averages</h1>
+    
+    <div id="stats-container">
+        <p style="text-align: center;">Calculating scores...</p>
+    </div>
+
+    <div id="entry-count" class="count"></div>
+
+    <a href="index.html" class="back-btn">← Back to Tracker</a>
+</div>
+
+<script>
+    async function fetchStats() {
+        const SUB_URL = "https://lsctlfavvxasbkcvbjmq.supabase.co";
+        const SUB_KEY = "sb_publishable_33maxbMOQrHvDSYwFouYNQ_EWrP1s8K";
+
+        try {
+            const response = await fetch(`${SUB_URL}/rest/v1/habits`, {
+                method: "GET",
+                headers: {
+                    "apikey": SUB_KEY,
+                    "Authorization": `Bearer ${SUB_KEY}`,
+                    "Content-Type": "application/json"
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.length === 0) {
+                document.getElementById('stats-container').innerHTML = "<p>No data logged yet.</p>";
+                return;
+            }
+
+            // Calculation Logic
+            const totals = data.reduce((acc, curr) => {
+                acc.physical += curr.physical || 0;
+                acc.achieve += curr.achieve || 0;
+                acc.connect += curr.connect || 0;
+                acc.enjoy += curr.enjoy || 0;
+                return acc;
+            }, { physical: 0, achieve: 0, connect: 0, enjoy: 0 });
+
+            const count = data.length;
+            const averages = {
+                Physical: (totals.physical / count).toFixed(1),
+                Achieve: (totals.achieve / count).toFixed(1),
+                Connect: (totals.connect / count).toFixed(1),
+                Enjoy: (totals.enjoy / count).toFixed(1)
+            };
+
+            // Generate HTML
+            let html = "";
+            for (const [key, val] of Object.entries(averages)) {
+                html += `
+                    <div class="stat-card">
+                        <span class="label">${key}</span>
+                        <span class="value">${val}</span>
+                    </div>
+                `;
+            }
+
+            document.getElementById('stats-container').innerHTML = html;
+            document.getElementById('entry-count').innerText = `Based on ${count} total entries`;
+
+        } catch (error) {
+            document.getElementById('stats-container').innerHTML = `<p style="color:red">Error: ${error.message}</p>`;
+        }
+    }
+
+    fetchStats();
+</script>
+
+</body>
+</html>
